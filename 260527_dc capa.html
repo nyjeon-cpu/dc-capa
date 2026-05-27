@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>물류센터 CAPA 현황 (GP001 인천기지)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f6f8; color: #1a1a2e; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.header h1 { font-size: 17px; font-weight: 600; color: #1a1a2e; }
+.header h1 small { font-size: 12px; font-weight: 400; color: #888; margin-left: 8px; }
+.badge { font-size: 11px; color: #666; background: #fff; border: 1px solid #e0e0e8; border-radius: 6px; padding: 4px 10px; margin-top: 2px; white-space: nowrap; }
+.zone-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 20px; }
+.zone-card { background: #fff; border-radius: 10px; border: 1px solid #e8e8f0; overflow: hidden; }
+.zone-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px 0; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.zone-title { font-size: 13px; font-weight: 600; }
+.zone-chart-area { height: 130px; position: relative; padding: 0 8px; }
+.zone-stats { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #f0f0f4; }
+.stat { padding: 8px 12px; }
+.stat:first-child { border-right: 1px solid #f0f0f4; }
+.stat-label { font-size: 10px; color: #999; margin-bottom: 2px; }
+.stat-val { font-size: 14px; font-weight: 600; }
+.stat-val.used { color: #4478c4; }
+.stat-val.avail { color: #22a07a; }
+.zone-total { border-top: 1px solid #f0f0f4; padding: 7px 12px; display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
+.zone-total span { font-size: 11px; color: #999; }
+.zone-total strong { font-size: 12px; font-weight: 600; color: #555; }
+.section-card { background: #fff; border-radius: 10px; border: 1px solid #e8e8f0; padding: 16px 18px; margin-bottom: 16px; }
+.section-title { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #666; }
+.legend-sq { width: 9px; height: 9px; border-radius: 2px; }
+.bar-wrap { height: 200px; position: relative; }
+.filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.filters label { font-size: 11px; color: #999; }
+.filters select { font-size: 12px; padding: 5px 10px; border-radius: 6px; border: 1px solid #ddd; background: #fff; color: #333; cursor: pointer; }
+.row-info { font-size: 11px; color: #aaa; margin-bottom: 8px; }
+.tbl-wrap { overflow-x: auto; max-height: 420px; overflow-y: auto; border-radius: 6px; border: 1px solid #f0f0f4; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead th { text-align: left; padding: 9px 11px; font-size: 11px; font-weight: 600; color: #888; border-bottom: 1px solid #ebebf0; white-space: nowrap; position: sticky; top: 0; background: #fafafa; z-index: 1; }
+tbody td { padding: 7px 11px; border-bottom: 1px solid #f5f5f8; white-space: nowrap; color: #333; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: #f9f9fc; }
+.tbadge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 500; }
+.t-RT { background: #e8f0fb; color: #1a5fa8; }
+.t-RE { background: #e2f5ee; color: #0d6b53; }
+.t-FR { background: #eeeeff; color: #3733a0; }
+.plt-bar { display: flex; align-items: center; gap: 6px; }
+.plt-mini { height: 6px; background: #b0c8e8; border-radius: 3px; min-width: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="header">
+  <div><h1>🏭 물류센터 보관 CAPA 현황 <small>GP001 인천기지</small></h1></div>
+  <div class="badge">2026.05.26 기준 (전일 스냅샷)</div>
+</div>
+<div class="zone-grid" id="zoneGrid"></div>
+<div class="section-card">
+  <div class="section-title">온도대별 MD팀 파렛트 점유 현황</div>
+  <div class="legend" id="teamLegend"></div>
+  <div class="bar-wrap"><canvas id="mdBarChart"></canvas></div>
+</div>
+<div class="section-card">
+  <div class="section-title">보관재고 상세 (SKU 기준, 파렛트 점유 상위)</div>
+  <div class="filters">
+    <label>온도대</label>
+    <select id="fZone" onchange="renderTable()">
+      <option value="">전체</option>
+      <option value="RT">상온</option>
+      <option value="RE">냉장</option>
+      <option value="FR">냉동</option>
+    </select>
+    <label>MD팀</label>
+    <select id="fTeam" onchange="onTeamChange()">
+      <option value="">전체</option>
+    </select>
+    <label>담당MD</label>
+    <select id="fMd" onchange="renderTable()">
+      <option value="">전체</option>
+    </select>
+  </div>
+  <div class="row-info" id="rowInfo"></div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>온도대</th><th>SKU코드</th><th>상품명</th>
+        <th style="text-align:right">수량</th><th>PLT수</th><th>MD팀</th><th>담당MD</th>
+      </tr></thead>
+      <tbody id="tblBody"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+<script>
+var zones=[{code:'RT',name:'상온',color:'#4478c4',capa:4211,used:3360},{code:'RE',name:'냉장',color:'#22a07a',capa:187,used:128},{code:'FR',name:'냉동',color:'#7b6de8',capa:2564,used:1509}];
+var mdTeams=['제과유음료MD팀','가공식품MD팀','라이프스타일MD팀','수축산MD팀','HMR상품개발팀','농산MD팀','PB상품개발팀'];
+var teamColors=['#378ADD','#1D9E75','#D4537E','#D85A30','#7F77DD','#639922','#BA7517'];
+var teamByZone={RT:[1781,1139,684,26,1,36,145],RE:[70,85,0,28,2,14,20],FR:[638,414,12,370,323,81,189]};
+var mdMap={"2":["미매칭","기타(퇴사자)"],"4":["전혜경","PB상품개발팀"],"5":["김지현","제과유음료MD팀"],"14":["윤성필","기타(퇴사자)"],"18":["박채은","기타(퇴사자)"],"20":["김혜진","기타(퇴사자)"],"22":["박상아","제과유음료MD팀"],"26":["고광재","기타(퇴사자)"],"28":["이우용","수축산MD팀"],"29":["박진수","농산MD팀"],"31":["김정민","라이프스타일MD팀"],"34":["여민수","농산MD팀"],"36":["최재경","라이프스타일MD팀"],"37":["김진현","수축산MD팀"],"39":["김동휘","가공식품MD팀"],"40":["강래성","가공식품MD팀"],"42":["이예진","HMR상품개발팀"],"44":["조현택","기타(퇴사자)"],"46":["이찬희","기타(퇴사자)"],"49":["미매칭","기타(퇴사자)"],"53":["미매칭","기타(퇴사자)"],"55":["이영성","농산MD팀"],"115":["김찬우","농산MD팀"],"136":["김지현","제과유음료MD팀"],"147":["미매칭","기타(퇴사자)"],"149":["서채연","가공식품MD팀"],"152":["조은해","HMR상품개발팀"],"153":["미매칭","기타(퇴사자)"],"156":["김승연","제과유음료MD팀"],"161":["제외SKU","기타(퇴사자)"],"178":["강지수","기타(퇴사자)"],"200":["송기현","라이프스타일MD팀"],"226":["서지은","제과유음료MD팀"],"269":["박정상","수축산MD팀"],"285":["허소영","기타(퇴사자)"],"286":["제외SKU","기타(퇴사자)"],"298":["강다예","가공식품MD팀"],"300":["주승완","가공식품MD팀"],"303":["김태식","기타(퇴사자)"],"324":["배상욱","수축산MD팀"],"325":["이솔희","라이프스타일MD팀"],"326":["미매칭","기타(퇴사자)"],"375":["채현규","기타(퇴사자)"],"412":["이시현","농산MD팀"]};
+var rawData=[["FR","A21010456","풀무원 돌얼음 3kg","136",5636,28],["FR","A21002069","롯데 월드콘 오리지널 160ml","136",73848,27],["FR","A21010457","풀무원 돌얼음 1kg","136",12070,20],["FR","A21001706","비비고 한입떡갈비 490g","39",6096,13],["FR","S0011504","한끼통살 닭가슴살볼 5종 10팩","298",4888,13],["FR","A21001707","비비고 통새우만두 350g","42",14756,12],["FR","A21007044","비비고 왕교자 1.05kg","42",5523,12],["FR","A21001708","풀무원 얇은피 꽉찬속 김치만두 540g","42",5346,12],["FR","A21015082","하겐다즈 바닐라 아이스크림 파인트 473ml","226",2640,11],["FR","A21010458","풀무원 돌얼음 500g","136",10254,10],["FR","A21001703","비비고 고기만두 350g","42",8820,10],["FR","A21009890","오뚜기 크림새우 2입 240g","152",4610,10],["FR","A21001709","CJ 비비고 새우교자 350g","42",3720,10],["FR","S0000474","크라운 뽀또 치즈타르트 아이스크림 70g","226",19740,9],["FR","A21015181","해태 폴라포 블루베리 아이스크림 70ml","226",16200,9],["FR","A21001712","풀무원 얇은피 꽉찬속 고기만두 540g","42",7308,9],["FR","A21015167","빙그레 메로나 바나나 80ml","226",14000,8],["FR","A21002038","롯데 수박바 130ml","226",11900,8],["FR","A21010634","풀무원 순두부찌개 600g","149",5520,8],["FR","A21009891","오뚜기 오동통면 2입 560g","152",3040,8],["FR","A21001697","비비고 군고구마 만두 350g","42",5600,7],["FR","A21005049","CJ 바이더웨이 닭가슴살 볶음밥 300g","4",7140,7],["FR","A21009893","오뚜기 쫄깃한 우동 2입 560g","152",2800,7],["FR","A21015169","빙그레 투게더 패밀리 900ml","136",2436,7],["FR","A21001710","풀무원 납작 만두 280g","42",3360,6],["FR","A21009888","오뚜기 볶음우동 2입 560g","152",2400,6],["FR","A21003394","풀무원 직화 돼지불고기 200g","37",4380,6],["FR","A21015170","빙그레 바나나맛 우유 240ml (냉동)","136",9720,6],["FR","A21009894","오뚜기 새우볶음밥 2입 560g","152",2040,6],["FR","A21005050","CJ 고메 버터 갈릭 새우 200g","4",3600,5],["FR","A21001704","비비고 납작당면만두 350g","42",4200,5],["FR","A21015168","빙그레 비비빅 수박 90ml","226",11000,5],["FR","S0011503","한끼통살 닭가슴살 스테이크 3종 10팩","298",3500,5],["FR","A21015171","빙그레 끝없이 이어지는 아이스크림 140ml","226",5000,5],["FR","A21005051","CJ 고메 치즈 함박스테이크 150g","4",4500,4],["FR","A21009892","오뚜기 진짜쫄면 2입 440g","152",2200,4],["FR","A21003396","풀무원 직화 소불고기 200g","37",3000,4],["FR","A21015172","해태 누가바 95ml","226",5600,4],["FR","A21015083","롯데 더블비얀코 아이스크림 140ml","226",4200,4],["FR","A21015166","빙그레 투게더 미니컵 120ml×4","136",2016,4],["FR","A21015084","롯데 월드콘 초코 160ml","226",5600,3],["FR","A21015080","해태 브라보콘 바닐라 155ml","226",5100,3],["FR","A21015081","빙그레 붕어싸만코 아이스크림 150ml","136",3840,3],["FR","A21015086","롯데 설레임 망고 152ml","226",4500,3],["FR","A21005052","CJ 고메 치킨까스 250g","4",4200,3],["FR","A21009895","오뚜기 참치볶음밥 2입 560g","152",1440,3],["FR","A21003395","풀무원 직화 닭갈비 200g","37",2700,3],["FR","A21015085","롯데 수박바 미니 4입 264ml","226",2100,3],["FR","A21001705","비비고 된장찌개 500g","39",2400,2],["FR","A21015079","해태 구구크러스터 바 140ml","226",2800,2],["FR","A21009896","오뚜기 동태찌개 450g","149",1800,2],["FR","A21003397","풀무원 직화 오삼불고기 200g","37",1800,2],["FR","A21015088","롯데 티코 바닐라 140ml","226",2000,2],["FR","A21015087","빙그레 옥동자 110ml","136",4320,2],["FR","A21015089","해태 바밤바 바닐라 130ml","226",2400,1],["FR","A21015090","빙그레 더위사냥 바닐라 140ml","136",2880,1],["FR","A21009897","오뚜기 육개장 450g","149",1400,1],["FR","A21005053","CJ 고메 새우튀김 200g","4",1800,1],["FR","A21015091","롯데 스크류바 130ml","226",2100,1],["FR","A21015092","해태 메로나 아이스크림 80ml","226",2100,1],["FR","A21003398","풀무원 직화 제육볶음 200g","37",1500,1],["FR","A21015093","빙그레 캔디바 아이스크림 90ml","136",1440,1],["FR","A21009898","오뚜기 갈비탕 500g","269",1200,1],["FR","A21003399","풀무원 직화 차돌박이 200g","37",1200,1],["FR","A21015094","해태 탱크보이 아이스크림 100ml","226",1700,1],["FR","A21009899","오뚜기 쇠고기미역국 500g","149",1000,1],["FR","A21005054","CJ 고메 핫도그 2입 200g","4",1200,1],["FR","A21015095","빙그레 비비빅 코코아 90ml","136",2160,1],["FR","A21015096","롯데 폴라포 딸기 80ml","226",1800,1],["FR","A21003400","풀무원 직화 닭볶음탕 350g","37",900,1],["FR","A21015097","해태 돼지바 105ml","226",2100,1],["FR","A21009900","오뚜기 부대찌개 500g","149",800,1],["FR","A21015098","빙그레 왕수박바 180ml","226",1800,1],["FR","A21009901","오뚜기 참치김치찌개 450g","149",700,1],["FR","A21015099","해태 포도봉봉바 105ml","226",1800,1],["FR","A21009902","오뚜기 사골곰탕 500g","269",600,1],["FR","A21015100","롯데 빠삐코 75ml","136",2160,1],["FR","A21009903","오뚜기 닭볶음탕 500g","149",600,1],["RT","A21001864","농심 신라면 120g 5입","300",57160,100],["RT","A21010635","햇반 210g 12입","39",9124,78],["RT","A21006394","햇반 210g 6입","39",18486,57],["RT","A21003402","코카콜라 제로 500ml","136",55386,46],["RT","A21011798","펩시 제로슈거 라임향 1.5L","136",17825,36],["RT","A38004560","잘풀리는집 클래식 27m 12롤 (3겹)","31",7643,36],["RT","A21020446","햇반 210g 8입","39",6832,30],["RT","A21002047","농심 올리브짜파게티 140g 5입","300",10880,28],["RT","A38004575","깨끗한나라 순수소프트 27m 12롤 (3겹)","31",3831,28],["RT","A21005597","농심 너구리 120g 5입","300",27412,26],["RT","A21006791","오리온 포카칩 어니언 137g","156",11566,25],["RT","S0005794","농심 육개장 사발면 86g 6입","300",8484,25],["RT","A21008863","오리온 최고스낵 4번들 170g","156",8255,24],["RT","A21010188","펩시 제로 슈거 라임향 500ml","136",36881,23],["RT","A21010209","포카리스웨트 1.5L","136",7476,22],["RT","A21011278","코카콜라 1.5L + 스프라이트 1.5L","136",4971,22],["RT","S0003389","[배민이지] 솔티드버터 팝콘 65g","4",18348,20],["RT","A21001482","동원 더바삭한 양반김 5g×12봉","300",14960,20],["RT","S0008895","햇반 발아현미밥130g 6입","39",7463,20],["RT","A21010372","농심 배홍동비빔면 137g×4입","300",6486,19],["RT","S0011827","포스트 코코볼 570g","156",4271,19],["RT","A21015101","켈로그 콘푸로스트 600g","156",3324,19],["RT","A21006790","오리온 포카칩 오리지널 137g","156",8559,18],["RT","A21001301","비비고 사골곰탕 500g","39",18680,17],["RT","S0014540","펩시 제로슈거 피치 355ml 6입","136",5924,17],["RT","A21001964","농심 안성탕면 125g 5입","300",5581,16],["RT","A21002291","팔도 비빔면 130g 5입","300",5210,16],["RT","A21006119","오리온 왕고래밥 56g","156",15262,15],["RT","A21021713","[배민이지] 히말라야 핑크솔트 카라멜맛 팝콘 70g","4",8878,15],["RT","S0016315","퍼실 딥클린 엑스퍼트 실내건조 라벤더 겸용 용기 2.7L","36",2838,15],["RT","A38003404","크리넥스 안심 클래식 키친타올 120매 4롤","31",2150,15],["RT","A21009179","스팸 클래식 200g 3개입","39",10608,14],["RT","S0014728","크라운 두바이스타일 쵸코하임 284g","156",7954,14],["RT","A21001971","농심 양파링 80g","156",6820,14],["RT","A21001681","삼양 불닭볶음면 140g 5입","300",5916,14],["RT","S0015241","나랑드사이다 그린애플 제로 245ml×6입","136",5791,14],["RT","S0014729","크라운 콘피쵸 112g","156",4957,14],["RT","S0014528","헬로키티 런던라이프 미용티슈 100매 6입","31",1640,14],["RT","A21013185","해태 홈런볼 41g×4입","156",21958,13],["RT","A21010210","나랑드사이다 제로 1.5L","136",6299,13],["RT","A21007782","코카콜라 1.5L","136",6046,13],["RT","S0005757","햇반 큰공기 300g 3입","39",5700,13],["RE","S0013221","[배민이지] 모짜렐라 피자치즈 200g (50g×4입)","22",3032,7],["RE","S0004597","[배민이지] 제로 헤이즐넛향 스위트 아메리카노 1L","4",3624,6],["RE","A21006433","CJ 다담 된장찌개 양념 530g","39",3276,6],["RE","A21005376","풀무원 새콤달콤 생쫄면 460g (2인분)","39",1708,6],["RE","A21005558","CJ 시원한 동치미 냉면육수 294.1g","39",11460,5],["RE","S0015091","풀무원 매콤 불냉면 2인 403g","39",1336,5],["RE","A21001437","CJ 다담 순두부찌개 양념 140g","39",5113,4],["RE","A21011781","빙그레 모짜렐라 피자치즈 240g(60g×4)","22",1540,4],["RE","S0007168","[배민이지] 슬라이스 체다치즈 180g (10매)","22",4708,3],["RE","A21020684","[배민이지] 국산 떡국떡 400g","4",3615,3],["RE","S0012407","[배민이지] 국내산 무로 만든 김밥 단무지 400g","4",2790,3],["RE","S0004967","청정원 콩담백면150g(냉장)","149",2092,3],["RE","A21010758","풀무원 평양냉면 2인 846g","39",902,3]];
+
+function buildZoneCards(){var grid=document.getElementById('zoneGrid');zones.forEach(function(z,i){var pct=Math.round(z.used/z.capa*1000)/10;var avail=z.capa-z.used;var card=document.createElement('div');card.className='zone-card';card.innerHTML='<div class="zone-head"><div class="dot" style="background:'+z.color+'"></div><span class="zone-title">'+z.name+'</span></div><div class="zone-chart-area"><canvas id="donut'+i+'"></canvas></div><div class="zone-stats"><div class="stat"><div class="stat-label">사용 PLT</div><div class="stat-val used">'+z.used.toLocaleString()+'</div></div><div class="stat"><div class="stat-label">여유 PLT</div><div class="stat-val avail">'+avail.toLocaleString()+'</div></div></div><div class="zone-total"><span>총 CAPA</span><strong>'+z.capa.toLocaleString()+' PLT</strong></div>';grid.appendChild(card);(function(idx,p,c){setTimeout(function(){var ctx=document.getElementById('donut'+idx).getContext('2d');new Chart(ctx,{type:'doughnut',data:{datasets:[{data:[p,100-p],backgroundColor:[c,'#f0f0f6'],borderWidth:0,cutout:'72%'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},animation:{duration:600}},plugins:[{id:'ct',afterDraw:function(ch){var cx=ch.ctx;var a=ch.chartArea;var mx=a.left+(a.right-a.left)/2;var my=a.top+(a.bottom-a.top)/2;cx.save();cx.textAlign='center';cx.textBaseline='middle';cx.font='bold 18px -apple-system,sans-serif';cx.fillStyle=c;cx.fillText(p.toFixed(1)+'%',mx,my-7);cx.font='10px -apple-system,sans-serif';cx.fillStyle='#aaa';cx.fillText('Fillrate',mx,my+10);cx.restore();}}]});},50);})(i,pct,z.color);});}
+
+function buildTeamLegend(){var el=document.getElementById('teamLegend');mdTeams.forEach(function(t,i){el.innerHTML+='<div class="legend-item"><div class="legend-sq" style="background:'+teamColors[i]+'"></div>'+t+'</div>';});}
+
+function buildMdBarChart(){var ctx=document.getElementById('mdBarChart').getContext('2d');var labels=['상온','냉장','냉동'];var zc=['RT','RE','FR'];var ds=mdTeams.map(function(n,i){return{label:n,data:zc.map(function(z){return teamByZone[z][i];}),backgroundColor:teamColors[i],borderRadius:2,borderSkipped:false};});new Chart(ctx,{type:'bar',data:{labels:labels,datasets:ds},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' '+c.dataset.label+': '+c.parsed.x.toLocaleString()+' PLT';}}}},scales:{x:{stacked:true,grid:{color:'#f0f0f4'},ticks:{font:{size:11},color:'#aaa'}},y:{stacked:true,grid:{display:false},ticks:{font:{size:12},color:'#555'}}}}});}
+
+function getMd(id){var info=mdMap[String(id)];if(!info)return{name:id?('ID:'+id):'-',team:'-'};return{name:info[0],team:info[1]};}
+
+function initFilters(){var fTeam=document.getElementById('fTeam');var teams=[];rawData.forEach(function(r){var t=getMd(r[3]).team;if(teams.indexOf(t)<0)teams.push(t);});teams.sort().forEach(function(t){fTeam.innerHTML+='<option value="'+t+'">'+t+'</option>';});}
+
+function onTeamChange(){var sel=document.getElementById('fTeam').value;var fMd=document.getElementById('fMd');fMd.innerHTML='<option value="">전체</option>';var names=[];rawData.forEach(function(r){var info=getMd(r[3]);if((!sel||info.team===sel)&&names.indexOf(info.name)<0&&info.name!=='-')names.push(info.name);});names.sort().forEach(function(n){fMd.innerHTML+='<option value="'+n+'">'+n+'</option>';});renderTable();}
+
+function renderTable(){var fz=document.getElementById('fZone').value;var ft=document.getElementById('fTeam').value;var fm=document.getElementById('fMd').value;var filtered=rawData.filter(function(r){var info=getMd(r[3]);if(fz&&r[0]!==fz)return false;if(ft&&info.team!==ft)return false;if(fm&&info.name!==fm)return false;return true;});var zl={RT:'상온',RE:'냉장',FR:'냉동'};var bc={RT:'t-RT',RE:'t-RE',FR:'t-FR'};var mx=Math.max.apply(null,filtered.map(function(r){return r[5];}))||1;var html='';filtered.forEach(function(r){var info=getMd(r[3]);var pw=Math.max(4,Math.round(r[5]/mx*80));html+='<tr><td><span class="tbadge '+bc[r[0]]+'">'+zl[r[0]]+'</span></td><td style="color:#888;font-family:monospace">'+r[1]+'</td><td>'+r[2]+'</td><td style="text-align:right">'+r[4].toLocaleString()+'</td><td><div class="plt-bar"><div class="plt-mini" style="width:'+pw+'px"></div><span>'+r[5]+'</span></div></td><td style="color:#555">'+info.team+'</td><td style="font-weight:500">'+info.name+'</td></tr>';});document.getElementById('tblBody').innerHTML=html;document.getElementById('rowInfo').textContent=filtered.length+'건 표시'+(filtered.length<rawData.length?' (전체 '+rawData.length+'건 중)':"");}
+
+buildZoneCards();buildTeamLegend();buildMdBarChart();initFilters();renderTable();
+</script>
+</body>
+</html>
