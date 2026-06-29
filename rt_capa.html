@@ -49,7 +49,7 @@ tr:hover td{background:#334155}
 <body>
 <div class="header">
   <h1>DC CAPA 상온 대시보드 — GP001 인천기지</h1>
-  <div class="sub">기준일: 2026-06-29 당일 04시 스냅샷 | 상온 총 CAPA: 5,260 PLT &nbsp;·&nbsp; 파렛트랙 3,964 + 평치 1,296 (인천기지 4,310 + 위수탁 950)</div>
+  <div class="sub">기준일: 2026-06-29 당일 04시 스냅샷 | 상온 총 CAPA: 6,300 PLT &nbsp;·&nbsp; 파렛트랙 6,300 (Trino 기준 PALLET_RACK 총 슬롯)</div>
 </div>
 <div class="container">
 
@@ -142,7 +142,7 @@ function getSHD(skuCode, qty) {
   return `<span style="background:${bg};color:${color};padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600">${shd}일</span>`;
 }
 
-const RT_CAPA=5260;
+const RT_CAPA=6300;
 const rackPlt=4510;
 const flatPlt=1357;
 const totalPlt=rackPlt+flatPlt;
@@ -741,12 +741,12 @@ const pct=(totalPlt/RT_CAPA*100).toFixed(1);
 document.getElementById('donutPct').textContent=pct+'%';
 document.getElementById('totalPlt').textContent=totalPlt.toLocaleString()+' PLT';
 const cls=pct>100?'over':pct>80?'warn':'ok';
-document.getElementById('totalSub').innerHTML=`<span class="${cls}">${pct}% 사용</span> · CAPA ${RT_CAPA.toLocaleString()} PLT<br><span style="color:#64748b;font-size:.75rem">인천기지 4,310 + 위수탁 950</span>`;
+document.getElementById('totalSub').innerHTML=`<span class="${cls}">${pct}% 사용</span> · CAPA ${RT_CAPA.toLocaleString()} PLT<br><span style="color:#64748b;font-size:.75rem">파렛트랙 6,300 슬롯 기준</span>`;
 document.getElementById('usageFill').style.width=Math.min(100,pct)+'%';
 const remaining=Math.max(0,RT_CAPA-totalPlt);
 document.getElementById('remainingPlt').innerHTML=`잔여 보관 가능: <span style="color:#34d399;font-weight:700">${remaining.toLocaleString()} PLT</span>`;
 document.getElementById('rackPlt').textContent=rackPlt.toLocaleString()+' PLT';
-document.getElementById('rackPct').textContent=(rackPlt/3964*100).toFixed(1)+'%';
+document.getElementById('rackPct').textContent=(rackPlt/6300*100).toFixed(1)+'%';
 document.getElementById('flatPlt').textContent=flatPlt.toLocaleString()+' PLT';
 document.getElementById('flatPct').textContent=(flatPlt/1296*100).toFixed(1)+'%';
 document.getElementById('totalSku').textContent=totalSku.toLocaleString()+' SKU';
